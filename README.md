@@ -1,4 +1,5 @@
 # Grupo-6
+
 Repo destinado as atividades da matéria de Aplicações Distribuidas 2024-2
 
 ## Integrantes
