@@ -51,26 +51,31 @@ public class Balanceador {
 
             while (true) {
                 Socket clientConnection = clientSocket.accept();
-                System.out.println("Cliente conectado: " + clientConnection.getInetAddress());
+//                System.out.println("Cliente conectado: " + clientConnection.getInetAddress());
 
-                ServerInfo server = getNextServer();
+                // Cria uma nova thread para cada conexão de cliente
+                new Thread(() -> {
+                    ServerInfo server = getNextServer();
 
-                if (server != null) {
-                    forwardRequestToServer(clientConnection, server);
-                } else {
-                    System.out.println("Nenhum servidor disponível no momento.");
-                }
-
-                clientConnection.close();
+                    if (server != null) {
+                        System.out.println("Encaminhando a requisição para o servidor: " + server.host + ":" + server.port);
+                        forwardRequestToServer(clientConnection, server);
+                    } else {
+                        System.out.println("Nenhum servidor disponível no momento.");
+                    }
+                }).start();  // Inicia a thread
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // Método para encaminhar a requisição do cliente para o servidor
     private static void forwardRequestToServer(Socket clientConnection, ServerInfo server) {
         try (Socket serverSocket = new Socket(server.host, server.port)) {
+            // Incrementa as conexões ativas no servidor
+            server.incrementConnections();
+            System.out.println("Conexões ativas no servidor " + server.host + ":" + server.port + ": " + server.activeConnections);
+
             BufferedReader clientIn = new BufferedReader(new InputStreamReader(clientConnection.getInputStream()));
             PrintWriter clientOut = new PrintWriter(clientConnection.getOutputStream(), true);
 
@@ -79,7 +84,7 @@ public class Balanceador {
 
             // Envia a mensagem do cliente para o servidor
             String clientMessage = clientIn.readLine();
-            System.out.println("Mensagem do cliente: " + clientMessage);
+//            System.out.println("Mensagem do cliente: " + clientMessage);
             serverOut.println(clientMessage);
 
             // Recebe a resposta do servidor e envia de volta ao cliente
@@ -87,24 +92,58 @@ public class Balanceador {
             System.out.println("Resposta do servidor: " + serverMessage);
             clientOut.println(serverMessage);
 
-            System.out.println("Cliente " + clientConnection.getInetAddress() + ":" + server.port);
-            System.out.println("\n");
+            // Adicione a impressão do servidor para o qual a requisição foi encaminhada
+            System.out.println("Requisição encaminhada para o servidor: " + server.host + ":" + server.port);
 
-        } catch (IOException e) {
+            // Atraso de 5 segundos para simular o tempo que o servidor leva para liberar a conexão
+            System.out.println("Aguardando 5 segundos antes de liberar a conexão...");
+            Thread.sleep(5000);  // Simula a espera
+
+            // Removido a impressão de desconexão do cliente
+        } catch (IOException | InterruptedException e) {
             System.out.println("Erro ao conectar ao servidor " + server.host + ":" + server.port);
             e.printStackTrace();
+        } finally {
+            // Decrementa as conexões ativas no servidor
+            server.decrementConnections();
+            System.out.println("Conexões ativas no servidor " + server.host + ":" + server.port + " após desconexão: " + server.activeConnections);
         }
     }
 
-    // Método para retornar o próximo servidor usando Round Robin
+
+
+    // Método para retornar o servidor com menos conexões ativas
     private static ServerInfo getNextServer() {
         if (servers.isEmpty()) {
             return null;
         }
 
-        ServerInfo server = servers.get(currentServerIndex);
-        currentServerIndex = (currentServerIndex + 1) % servers.size();  // Round Robin
-        return server;
+        // Encontra o servidor com menos conexões ativas
+        ServerInfo leastConnectedServer = null;
+        int leastConnections = Integer.MAX_VALUE;
+
+        for (ServerInfo server : servers) {
+            if (server.activeConnections < leastConnections) {
+                leastConnections = server.activeConnections;
+                leastConnectedServer = server;
+            }
+        }
+
+        // Se há mais de um servidor com o mesmo número de conexões, aplica o round robin
+        List<ServerInfo> leastConnectedServers = new ArrayList<>();
+        for (ServerInfo server : servers) {
+            if (server.activeConnections == leastConnections) {
+                leastConnectedServers.add(server);
+            }
+        }
+
+        // Usa round robin se há mais de um servidor com o mesmo número de conexões
+        if (!leastConnectedServers.isEmpty()) {
+            leastConnectedServer = leastConnectedServers.get(currentServerIndex % leastConnectedServers.size());
+            currentServerIndex = (currentServerIndex + 1) % leastConnectedServers.size();  // Round Robin
+        }
+
+        return leastConnectedServer;
     }
 
     private static void pingAndPrintServersAvailable() {
@@ -117,11 +156,11 @@ public class Balanceador {
                         servers.remove(server);
                     }
                 }
-                System.out.println("Servidores Disponiveis: ");
-                if(servers.isEmpty()){
-                    System.out.println("Nenhuma servidor disponivel.\n");
+                System.out.println("Servidores Disponíveis: ");
+                if (servers.isEmpty()) {
+                    System.out.println("Nenhum servidor disponível.\n");
                 } else {
-                    for(ServerInfo serverInfo: servers){
+                    for (ServerInfo serverInfo : servers) {
                         System.out.println("Servidor: " + serverInfo.host + ":" + serverInfo.port);
                     }
                     System.out.println("\n");
@@ -159,10 +198,22 @@ public class Balanceador {
     static class ServerInfo {
         String host;
         int port;
+        int activeConnections; // Número de conexões ativas
 
         ServerInfo(String host, int port) {
             this.host = host;
             this.port = port;
+            this.activeConnections = 0;  // Inicializa com 0 conexões
+        }
+
+        // Incrementa o número de conexões ativas
+        public void incrementConnections() {
+            activeConnections++;
+        }
+
+        // Decrementa o número de conexões ativas
+        public void decrementConnections() {
+            activeConnections--;
         }
     }
 }
