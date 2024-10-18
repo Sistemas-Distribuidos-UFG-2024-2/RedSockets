@@ -1,0 +1,25 @@
+import socket
+
+def main():
+    host = '127.0.0.1'  # Endereço do servidor
+    port = 12345        # Porta do servidor
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+        client_socket.connect((host, port))
+
+        # Lê os dados do usuário
+        nome = input("Digite o nome: ")
+        sexo = input("Digite o sexo (masculino/feminino): ")
+        idade = input("Digite a idade: ")
+
+        # Envia os dados ao servidor, cada um em uma nova linha
+        client_socket.sendall((nome + "\n").encode())
+        client_socket.sendall((sexo + "\n").encode())
+        client_socket.sendall((idade + "\n").encode())
+
+        # Recebe a resposta do servidor
+        resposta = client_socket.recv(1024).decode()
+        print("Resposta do servidor:", resposta)
+
+if __name__ == "__main__":
+    main()

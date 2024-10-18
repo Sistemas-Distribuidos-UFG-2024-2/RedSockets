@@ -1,16 +1,15 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
+package socketsPart1;
 
-public class Servidor2 {
+import java.io.*;
+import java.net.Socket;
+import java.net.ServerSocket;
+
+public class Servidor {
     private static final String LOAD_BALANCER_HOST = "localhost";
     private static final int LOAD_BALANCER_PORT = 9001; // Porta do balanceador de carga
 
     public static void main(String[] args) {
-        int serverPort = 8080; // Porta onde o servidor vai ouvir
+        int serverPort = 12345; // Porta onde o servidor vai ouvir
 
         // Notifica o Load Balancer que o servidor está online
         notifyLoadBalancer(serverPort);
