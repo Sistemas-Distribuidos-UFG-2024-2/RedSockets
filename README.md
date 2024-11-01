@@ -1,4 +1,4 @@
-# Grupo-6
+# REDSOCKETS
 
 Repo destinado as atividades da matéria de Aplicações Distribuidas 2024-2
 
