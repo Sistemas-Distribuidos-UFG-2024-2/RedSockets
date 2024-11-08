@@ -5,11 +5,11 @@ import java.sql.*;
 public class Sincronizacao {
 
     private Sqlite sqlite;
-    private Postgres bancoPostgres;
+    private Postgres postgres;
 
     public Sincronizacao(Sqlite bancoLocal, Postgres bancoPostgres) {
         this.sqlite = bancoLocal;
-        this.bancoPostgres = bancoPostgres;
+        this.postgres = bancoPostgres;
     }
 
     public void sincronizar() {
@@ -35,7 +35,7 @@ public class Sincronizacao {
     private boolean inserirNoPostgres(String nome, String cargo, String horario) {
         String sql = "INSERT INTO func_ponto (nome, cargo, horario) VALUES (?, ?, ?)";
 
-        try (PreparedStatement stmt = bancoPostgres.getConexao().prepareStatement(sql)) {
+        try (PreparedStatement stmt = postgres.getConexao().prepareStatement(sql)) {
             stmt.setString(1, nome);
             stmt.setString(2, cargo);
             stmt.setString(3, horario);
