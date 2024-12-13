@@ -1,6 +1,9 @@
 package org.example.db;
 
+import org.json.JSONObject;
+
 import java.sql.*;
+import java.util.UUID;
 
 public class Sqlite {
 
@@ -22,7 +25,8 @@ public class Sqlite {
 
     private void criarTabela() {
         String sql = "CREATE TABLE IF NOT EXISTS func_ponto ("
-                + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "id UUID PRIMARY KEY,"
+                + "matricula TEXT NOT NULL,"
                 + "nome TEXT NOT NULL,"
                 + "cargo TEXT NOT NULL,"
                 + "horario TEXT NOT NULL"
@@ -35,15 +39,18 @@ public class Sqlite {
         }
     }
 
-    public void salvarPontoOffline(String nome, String cargo, String horario) {
-        String sql = "INSERT INTO func_ponto(nome, cargo, horario) VALUES(?,?,?)";
+    public void salvarPontoOffline(JSONObject json) {
+        String sql = "INSERT INTO func_ponto(id, matricula, nome, cargo, horario) VALUES(?,?,?,?,?)";
 
         try (PreparedStatement stmt = conexao.prepareStatement(sql)) {
-            stmt.setString(1, nome);
-            stmt.setString(2, cargo);
-            stmt.setString(3, horario);
+            UUID id = (UUID) json.get("id");
+            stmt.setObject(1, id);
+            stmt.setString(2, json.getString("matricula"));
+            stmt.setString(3, json.getString("nome"));
+            stmt.setString(4, json.getString("cargo"));
+            stmt.setString(5, json.getString("dataHora"));
             stmt.executeUpdate();
-            System.out.println("Ponto salvo localmente: " + nome);
+            System.out.println("Ponto salvo localmente: " + json);
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
@@ -59,15 +66,19 @@ public class Sqlite {
         }
     }
 
-    public void deletarPonto(int id) {
+    public void deletarPonto(String id) {
         String sql = "DELETE FROM func_ponto WHERE id = ?";
 
         try (PreparedStatement stmt = conexao.prepareStatement(sql)) {
-            stmt.setInt(1, id);
+            stmt.setString(1, id);
             stmt.executeUpdate();
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    public Connection getConexao() {
+        return conexao;
     }
 }
 

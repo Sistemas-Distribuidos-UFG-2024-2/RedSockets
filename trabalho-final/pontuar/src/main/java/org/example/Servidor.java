@@ -1,56 +1,60 @@
 package org.example;
 
+import org.example.db.PostgresProxy;
+import org.example.db.PostgresServidor;
+import org.example.db.Sincronizacao;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 
 
 public class Servidor {
+    private PostgresServidor postgresServidor;
+
+    public Servidor(PostgresServidor postgresServidor){
+        this.postgresServidor = postgresServidor;
+    }
 
     public static void main(String[] args) {
-        int porta = 8080;  // Porta para conexão
+        PostgresServidor postgresServidor = new PostgresServidor();
+        Servidor servidor = new Servidor(postgresServidor);
+        PostgresProxy postgresProxy = new PostgresProxy();
+        Sincronizacao sinc = new Sincronizacao(postgresProxy ,postgresServidor);
 
-        try (ServerSocket servidorSocket = new ServerSocket(porta)) {
-            System.out.println("Servidor aguardando conexões na porta " + porta);
+
+        try (ServerSocket serverSocket = new ServerSocket(8082)) {
+            System.out.println("Servidor iniciado na porta 8082.");
+            sinc.sincronizarPostgresParaServidor();
 
             while (true) {
-                // Aceita conexão do cliente
-                Socket clienteSocket = servidorSocket.accept();
-                System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
+                try (Socket clienteSocket = serverSocket.accept()) {
+                    BufferedReader entrada = new BufferedReader(new InputStreamReader(clienteSocket.getInputStream()));
+                    String jsonStr = entrada.readLine();
 
-                // Processa a requisição do cliente
-                BufferedReader entrada = new BufferedReader(new InputStreamReader(clienteSocket.getInputStream()));
-                PrintWriter saida = new PrintWriter(clienteSocket.getOutputStream(), true);
-
-                // Recebe e processa o JSON do cliente
-                String jsonStr = entrada.readLine();
-                if (jsonStr != null) {
-                    JSONObject json = new JSONObject(jsonStr);
-                    processarPontoFuncionario(json);
+                    if (jsonStr != null) {
+                        JSONObject json = new JSONObject(jsonStr);
+                        System.out.println(json);
+                        servidor.salvarNoBanco(json);
+                    }
+                } catch (IOException e) {
+                    System.err.println("Erro ao processar requisição: " + e.getMessage());
                 }
-
-                // Envia confirmação para o cliente
-                saida.println("Ponto registrado com sucesso!");
-                clienteSocket.close();  // Fecha a conexão com o cliente
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("Erro ao iniciar o servidor: " + e.getMessage());
         }
+
     }
 
-    // Processa as informações recebidas do funcionário
-    private static void processarPontoFuncionario(JSONObject json) {
-        String nome = json.getString("nome");
-        String cargo = json.getString("cargo");
-        String horario = json.getString("horario");
+    private void salvarNoBanco(JSONObject json) {
+        postgresServidor.inserirBancoProd(json);
+        System.out.println("Dado salvo no banco de dados: " + json);
 
-        System.out.println("Registro de ponto:");
-        System.out.println("Nome: " + nome);
-        System.out.println("Cargo: " + cargo);
-        System.out.println("Horário: " + horario);
     }
 }
+

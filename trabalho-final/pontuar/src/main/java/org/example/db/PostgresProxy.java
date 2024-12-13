@@ -1,14 +1,14 @@
 package org.example.db;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import org.json.JSONObject;
 
-public class Postgres {
+import java.sql.*;
+import java.util.UUID;
+
+public class PostgresProxy {
     private Connection conexao;
 
-    public Postgres() {
+    public PostgresProxy() {
         conectar();
         criarTabela();
     }
@@ -29,7 +29,8 @@ public class Postgres {
     private void criarTabela() {
         String sql = """
             CREATE TABLE IF NOT EXISTS func_ponto (
-                id SERIAL PRIMARY KEY,
+                id UUID PRIMARY KEY,
+                matricula VARCHAR(100) NOT NULL,
                 nome VARCHAR(100) NOT NULL,
                 cargo VARCHAR(50) NOT NULL,
                 horario VARCHAR(50) NOT NULL
@@ -46,6 +47,31 @@ public class Postgres {
 
     public Connection getConexao() {
         return conexao;
+    }
+
+
+    public void salvarPontoOffline(JSONObject json) {
+        String sql = "INSERT INTO func_ponto (id, matricula, nome, cargo, horario) VALUES (?, ?, ?, ?, ?)";
+
+        try (PreparedStatement stmt = conexao.prepareStatement(sql)) {
+
+            // Converte a string do JSON para UUID
+            UUID id = UUID.fromString(json.getString("id")); // Converte String para UUID
+
+            stmt.setObject(1, id); // Insere o UUID diretamente
+            stmt.setString(2, json.getString("matricula"));
+            stmt.setString(3, json.getString("nome"));
+            stmt.setString(4, json.getString("cargo"));
+            stmt.setString(5, json.getString("dataHora"));
+
+            stmt.executeUpdate();
+            System.out.println("Ponto salvo localmente: " + json);
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao salvar no banco local: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            System.err.println("ID inválido: " + e.getMessage());
+        }
     }
 }
 
